@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Space Wave - Easy Level</title>
+<style>
+body {
+    margin: 0;
+    background: black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+canvas {
+    border: 2px solid white;
+}
+</style>
+</head>
+<body>
+
+<canvas id="game" width="800" height="450"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+// ===== LEVEL SETTINGS =====
+const level = {
+    enemySpeed: 2,
+    spawnRate: 120,
+    monsterHealth: 1
+};
+
+// ===== PLAYER (WAVE) =====
+const player = {
+    x: 80,
+    y: canvas.height / 2,
+    size: 20,
+    speed: 5
+};
+
+let arrows = [];
+let monsters = [];
+let explosions = [];
+let score = 0;
+let frame = 0;
+let gameOver = false;
+
+// ===== CONTROLS =====
+document.addEventListener("keydown", e => {
+    if (e.key === "ArrowUp") player.y -= player.speed;
+    if (e.key === "ArrowDown") player.y += player.speed;
+    if (e.key === " ") shootArrow();
+    if (e.key === "r" && gameOver) resetGame();
+});
+
+// ===== SHOOT ARROW =====
+function shootArrow() {
+    arrows.push({
+        x: player.x + player.size,
+        y: player.y + player.size / 2,
+        speed: 7
+    });
+}
+
+// ===== CREATE MONSTER =====
+function spawnMonster() {
+    monsters.push({
+        x: canvas.width,
+        y: Math.random() * (canvas.height - 30),
+        size: 30,
+        health: level.monsterHealth
+    });
+}
+
+// ===== EXPLOSION =====
+function createExplosion(x, y) {
+    explosions.push({ x, y, radius: 0 });
+}
+
+// ===== COLLISION =====
+function hit(a, b) {
+    return (
+        a.x < b.x + b.size &&
+        a.x + 10 > b.x &&
+        a.y < b.y + b.size &&
+        a.y + 10 > b.y
+    );
+}
+
+// ===== RESET =====
+function resetGame() {
+    arrows = [];
+    monsters = [];
+    explosions = [];
+    score = 0;
+    frame = 0;
+    gameOver = false;
+    player.y = canvas.height / 2;
+    loop();
+}
+
+// ===== UPDATE =====
+function update() {
+    frame++;
+
+    if (frame % level.spawnRate === 0) spawnMonster();
+
+    arrows.forEach(a => a.x += a.speed);
+    monsters.forEach(m => m.x -= level.enemySpeed);
+
+    // Arrow hits monster
+    arrows.forEach((a, ai) => {
+        monsters.forEach((m, mi) => {
+            if (hit(a, m)) {
+                createExplosion(m.x, m.y);
+                monsters.splice(mi, 1);
+                arrows.splice(ai, 1);
+                score += 10;
+            }
+        });
+    });
+
+    // Remove off screen
+    arrows = arrows.filter(a => a.x < canvas.width);
+    monsters = monsters.filter(m => m.x + m.size > 0);
+
+    // Player collision
+    monsters.forEach(m => {
+        if (
+            player.x < m.x + m.size &&
+            player.x + player.size > m.x &&
+            player.y < m.y + m.size &&
+            player.y + player.size > m.y
+        ) gameOver = true;
+    });
+
+    // Explosions grow
+    explosions.forEach(e => e.radius += 2);
+    explosions = explosions.filter(e => e.radius < 20);
+}
+
+// ===== DRAW =====
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Player wave
+    ctx.fillStyle = "cyan";
+    ctx.fillRect(player.x, player.y, player.size, player.size);
+
+    // Arrows
+    ctx.fillStyle = "yellow";
+    arrows.forEach(a => {
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(a.x - 10, a.y - 5);
+        ctx.lineTo(a.x - 10, a.y + 5);
+        ctx.fill();
+    });
+
+    // Monsters
+    ctx.fillStyle = "red";
+    monsters.forEach(m => {
+        ctx.fillRect(m.x, m.y, m.size, m.size);
+    });
+
+    // Explosions
+    ctx.strokeStyle = "orange";
+    explosions.forEach(e => {
+        ctx.beginPath();
+        ctx.arc(e.x + 15, e.y + 15, e.radius, 0, Math.PI * 2);
+        ctx.stroke();
+    });
+
+    // UI
+    ctx.fillStyle = "white";
+    ctx.font = "20px Arial";
+    ctx.fillText("Score: " + score, 20, 30);
+    ctx.fillText("Level: EASY", 650, 30);
+}
+
+// ===== GAME LOOP =====
+function loop() {
+    if (gameOver) {
+        ctx.fillStyle = "white";
+        ctx.font = "40px Arial";
+        ctx.fillText("GAME OVER", 280, 200);
+        ctx.font = "20px Arial";
+        ctx.fillText("Press R to Restart", 300, 240);
+        return;
+    }
+
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+</html>
